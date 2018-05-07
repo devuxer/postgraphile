@@ -200,15 +200,17 @@ export default function createPostGraphileHttpRequestHandler(options) {
     bodyParser.text({ type: 'application/graphql' }),
   ]
 
-  // Takes the original GraphiQL HTML file and replaces the default config object.
-  const graphiqlHtml = origGraphiqlHtml.then(html =>
-    html.replace(
-      /window\.POSTGRAPHILE_CONFIG\s*=\s*\{[^]*\}/,
-      `window.POSTGRAPHILE_CONFIG={graphqlUrl:'${graphqlRoute}',streamUrl:${
-        options.watchPg ? '\'/_postgraphile/stream\'' : 'null'
-      }}`,
-    ),
-  )
+  // Takes the original GraphiQL HTML file and replaces:
+  // (1) the default config object
+  // (2) postgraphile URLs, so they are relative to either host or, if running in a sub-directory, host/[sub-directory].
+  const graphiqlHtml = origGraphiqlHtml.then(html => {
+    return html
+      .replace(
+        /window\.POSTGRAPHILE_CONFIG\s*=\s*\{[^]*\}/,
+        `window.POSTGRAPHILE_CONFIG={graphqlUrl:'.${graphqlRoute}',streamUrl:${options.watchPg ? "'/_postgraphile/stream'" : "null"}}`
+      )
+      .replace(/\"\/_postgraphile/g, '"./_postgraphile'); // add a dot before all instances of /_postgraphile
+  });
 
   const withPostGraphileContextFromReqRes = withPostGraphileContextFromReqResGenerator(options)
 
